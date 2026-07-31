@@ -12,8 +12,8 @@ Financial institutions generate massive volumes of transaction data across diffe
 ## Dataset Description
 The source layer integrates transaction feeds from three primary geographical operational regions:
 
-*   ** `north_transactions.csv` ** : This file contains the daily transaction records from the bank branches in the North region.
-*   ** `south_transactions.csv` **: This file tracks daily transaction data from both corporate offices and normal bank branches in the South region.
+*   **`north_transactions.csv`** : This file contains the daily transaction records from the bank branches in the North region.
+*   **`south_transactions.csv`**: This file tracks daily transaction data from both corporate offices and normal bank branches in the South region.
 *   **`west_transactions.csv`**: This file stores transaction logs and operational details from the banking channels in the West region.
 
 **Key Features Profiled:** 
