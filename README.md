@@ -80,7 +80,7 @@ Banking_Data_Pipeline/
 * **Data Processing**: Pandas, NumPy
 * **Visualization Layer**: Matplotlib, Seaborn
 
-## ⚙️ Pipeline Architecture Workflow
+## Pipeline Architecture Workflow
 
 The system processes banking data sequentially through the following decoupled operational modules:
 
