@@ -80,12 +80,24 @@ Banking_Data_Pipeline/
 * **Data Processing**: Pandas, NumPy
 * **Visualization Layer**: Matplotlib, Seaborn
 
-## Setup & Execution Instructions
+## ⚙️ Pipeline Architecture Workflow
+
+The system processes banking data sequentially through the following decoupled operational modules:
+
+1. **Data Ingestion (`extract.py`)**: Automatically scans and streams multi-region transaction files from the `raw_data/` directory into memory.
+2. **Schema Verification (`validate.py`)**: Runs strict structural validations. Missing IDs or broken schemas are routed to `quarantine.py` to prevent pipeline failures.
+3. **Log Transformation (`transform.py`)**: Handles data scrubbing, handles categorical normalizations, applies correct datetime indexing, and executes logical record sorting.
+4. **Risk Analytics Engine (`fraud.py`)**: Evaluates transactional attributes against specific compliance metrics to compute fraud probability metrics and flag anomalous profiles.
+5. **Persistence Management (`load.py`)**: Persists safe, non-fraud audited transaction schemas directly down into the structured target `processed/` directory.
+
+---
+
+ ## Setup & Execution Instructions
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com
-   cd Banking-Transaction-Data-Pipeline
+   git clone <your-repository-url>
+   cd Banking_Data_Pipeline
    ```
 
 2. **Initialize Environment & Dependencies**
@@ -93,10 +105,21 @@ Banking_Data_Pipeline/
    pip install -r requirements.txt
    ```
 
-3. **Execute the Data Pipeline & Exploration**
-   * Launch Jupyter Notebook by running this command in your terminal: 
+3. **Data Setup Precaution**
+   * Since data folders are excluded via `.gitignore` for security and privacy, you must manually create a `raw_data/` directory in the project root.
+   * Place your source files (`north_transactions.csv`, `south_transactions.csv`, `west_transactions.csv`) inside it before running the project.
+
+4. **Execute the Core Pipeline (Production Mode)**
+   To execute the end-to-end automated ETL pipeline script via the orchestration controller, run:
+   ```bash
+   python src/main.py
+   ```
+
+5. **Execute the Data Exploration (Research Mode)**
+   To analyze data profiles and review generated charts manually:
+   * Launch Jupyter Notebook:
      ```bash
      jupyter notebook
      ```
-   * Open the file named `notebooks/data_exploration.ipynb` in your browser.
-   * Run all cells sequentially from top to bottom to load, merge, profile the data, and generate all final analytical graphs.
+   * Open `notebooks/data_exploration.ipynb` and run all cells sequentially to evaluate metrics and review plotting layers.
+
