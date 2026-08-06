@@ -31,33 +31,48 @@ The system tracks and parses historical banking interactions across the followin
 
 
 ## Folder Structure
-
 ```text
 Banking_Data_Pipeline/
 │
-├── raw_data/                   # Original, raw source CSV files
+├── raw_data/                       # Original, raw source CSV files
 │   ├── north_transactions.csv
 │   ├── south_transactions.csv
 │   └── west_transactions.csv
 │
-├── processed/                  # Contains the merged master dataset
-│   └── master_transactions.csv
+├── processed/                      # Target directory for verified data
+│   └── clean_transactions.csv      # 100% Valid and safe non-fraud transactions
 │
-├── reports/                    # Generated analytical documents & charts
-│   ├── graphs/                 # Saved EDA charts (Chart 1 to Chart 6)
-│   └── Data_Quality_Report.pdf # Final data quality and audit report (PDF)
+├── quarantine/                     # Folder for failed records
+│   └── quarantine_transactions.csv # Invalid records tagged with validation reasons
 │
-├── logs/                       # Application and execution pipeline logs
+├── fraud_data/                     # Folder for high-risk records
+│   └── fraud_transactions.csv      # Suspicious transactions separated from clean rows
 │
-├── notebooks/                  # Jupyter Notebooks used for interactive EDA
-|   └── data_exploration.ipynb  # Data ingestion, merging, profiling & analysis script
+├── reports/                        # Analysis files and documents
+│   ├── graphs/                     # Standard saved EDA plots
+│   └── Data_Quality_Report.pdf     # Final data quality and audit report (PDF)
 │
-├── src/                        # Executable Python scripts for the pipeline
+├── logs/                           # Application and execution pipeline logs
+│   └── etl.log                     # Automated continuous system activity logs
 │
-├── screenshots/                # Terminal outputs and execution proof
+├── notebooks/                      # Exploratory script spaces
+│   └── data_exploration.ipynb      # Data ingestion, merging, profiling & analysis script
 │
-├── README.md                   # Project documentation (This file)
-└── requirements.txt            # Python dependencies
+├── src/                            # Executable Python scripts for the pipeline
+│   ├── extract.py                  # Script to read data files
+│   ├── validate.py                 # Structural parsing validations
+|   ├── quarantine.py               # Quarantine mechanism for invalid records
+│   ├── transform.py                # Value normalizations and sorting
+│   ├── fraud.py                    # Module to flag fraud risks
+│   ├── load.py                     # Module to save clean output to CSV
+│   ├── logger.py                   # Configurations to write log files
+│   ├── config.py                   # File paths and constants configuration
+│   └── main.py                     # Central controller script to run everything
+│
+├── screenshots/                    # Terminal execution console logs
+│
+├── README.md                       # Project documentation (This file)
+└── requirements.txt                # Python external library list
 ```
 
 ## Technologies Used
@@ -79,7 +94,7 @@ Banking_Data_Pipeline/
    ```
 
 3. **Execute the Data Pipeline & Exploration**
-   * Launch Jupyter Notebook by running this command in your terminal:
+   * Launch Jupyter Notebook by running this command in your terminal: 
      ```bash
      jupyter notebook
      ```
