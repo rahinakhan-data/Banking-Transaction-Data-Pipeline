@@ -1,0 +1,13 @@
+# Python compiler cache
+**/__pycache__/
+*.pyc
+
+# Local system application logs
+logs/
+*.log
+
+# Sensitive raw and processed transaction data
+fraud_data/
+processed/
+raw_data/
+quarantine/
