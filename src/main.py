@@ -1,11 +1,18 @@
 import time
-from logger import logger  # Import our central ETL logger
-from extract import extract_records, north_file_path, south_file_path, west_file_path
-from validate import validate_records
-from quarantine import quarantine_records
-from transform import transform_records
-from fraud import fraud_transactions
-from load import load_records
+import sys
+import os
+
+# Python runtime search path resolution management layer mapping
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.logger import logger  # Central logging trace singleton handle
+from src.config import NORTH_FILE_PATH, SOUTH_FILE_PATH, WEST_FILE_PATH
+from src.extract import extract_records
+from src.validate import validate_records
+from src.quarantine import quarantine_records
+from src.transform import transform_records
+from src.fraud import fraud_transactions
+from src.load import load_records
 
 if __name__ == "__main__":
     
@@ -17,7 +24,7 @@ if __name__ == "__main__":
         # ------------------------------------------------------------
         # DATA EXTRACTION STAGE
         # ------------------------------------------------------------
-        extracted_df = extract_records(north_file_path, south_file_path, west_file_path)
+        extracted_df = extract_records(NORTH_FILE_PATH, SOUTH_FILE_PATH, WEST_FILE_PATH)
         total_processed = len(extracted_df)
         
         # Step: Extraction Completed
@@ -51,7 +58,7 @@ if __name__ == "__main__":
         # -------------------------------------------------------------
         # FRAUD TRANSACTION DETECTION STAGE
         # -------------------------------------------------------------
-        fraud_df, clean_df = fraud_transactions(transform_data)
+        fraud_df, clean_df, full_processed_df = fraud_transactions(transform_data)
         fraud_records_count = len(fraud_df)
         
         # Step: Fraud Detection Completed
@@ -60,15 +67,16 @@ if __name__ == "__main__":
         # --------------------------------------------------------------
         # DATA LOAD STAGE
         # --------------------------------------------------------------
-        load_records(clean_df)
-        
+        load_records(full_processed_df)
         # Step: Data Loaded Successfully
-        logger.info("Data Loaded Successfully\n")
+        logger.info("Data Loaded Successfully")
         
+        print("\n","*="*50)
+
         end_time = time.time() - start_time
         
         # Step: ETL Finished
-        logger.info(f"ETL Finished successfully in {end_time:.4f} seconds")
+        logger.info(f"ETL Finished successfully in {end_time:.4f} seconds \n")
 
     except Exception as pipeline_error:
         # If any component crashes, log the critical trace back immediately
