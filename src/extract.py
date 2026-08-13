@@ -1,12 +1,5 @@
+import os
 import pandas as pd
-import os 
-
-parent_dir = os.getcwd()
-raw_data_dir = os.path.join(parent_dir, 'raw_data')
-
-north_file_path = os.path.join(raw_data_dir, 'north_transactions.csv')
-south_file_path = os.path.join(raw_data_dir, 'south_transactions.csv')
-west_file_path = os.path.join(raw_data_dir, 'west_transactions.csv')
 
 def extract_records(north_file_path, south_file_path, west_file_path):
     print("\n","*="*50)
