@@ -11,3 +11,6 @@ fraud_data/
 processed/
 raw_data/
 quarantine/
+
+# Local environment variables
+.env
