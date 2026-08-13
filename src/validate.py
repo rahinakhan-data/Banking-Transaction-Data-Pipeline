@@ -1,7 +1,4 @@
 import pandas as pd
-import numpy as np
-import os
-
 
 def validate_records(extracted_df):
     df = extracted_df.copy()
@@ -11,7 +8,7 @@ def validate_records(extracted_df):
 
         if df.empty:
             print("DataFrame is empty. Validation Completed.")
-            return df
+            return df, pd.DataFrame()
 
         # 1. Check Missing Account Number
         null_account_number_cond = (df['account_number'].isnull() | (df['account_number'].astype(str).str.strip() == ""))
