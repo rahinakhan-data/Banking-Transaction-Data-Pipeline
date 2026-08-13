@@ -1,6 +1,7 @@
 import os 
 import pandas as pd
 import numpy as np
+from config import FRAUD_CSV_PATH
 
 def fraud_transactions(transformed_data):
 
@@ -12,7 +13,7 @@ def fraud_transactions(transformed_data):
         print("No records exist for fraud detection")
 
         # return an empty DataFrame to prevent breaking the downstream workflow
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     try:
         print("\n","*="*50)
@@ -39,23 +40,16 @@ def fraud_transactions(transformed_data):
         fraud_txn_df = df[df['fraud_flag'] == 'YES'].copy()
         clean_df = df[df['fraud_flag'] == 'NO'].copy()
         
-        # To make new folder fraud_data to save all fraud_transactions records
-
-        parent_dir = os.getcwd()
-        fraud_dir = os.path.join(parent_dir, 'fraud_data')
-        os.makedirs(fraud_dir, exist_ok=True)
-
-        fraud_txn_file_path = os.path.join(fraud_dir, 'fraud_transactions.csv')
-        fraud_txn_df.to_csv(fraud_txn_file_path, index = False)
+        fraud_txn_df.to_csv(FRAUD_CSV_PATH, index = False)
 
         # to print summary
         print(f"Total Scanned Rows : {len(df)}")
         print(f"Total Fraud Transactions Found  : {len(fraud_txn_df)}")
         print(f"Total Clean Records Found : {len(clean_df)}")
-        print(f"Fraud Transactions Saved At      : {fraud_txn_file_path}")
+        print(f"Fraud Transactions Saved At      : {FRAUD_CSV_PATH}")
         print("--- Fraud Detection Ended ---")        
 
-        return fraud_txn_df, clean_df
+        return fraud_txn_df, clean_df, df
 
     except Exception as err:
         raise RuntimeError(f"CRITICAL ERROR during fraud detection logic: {err}")

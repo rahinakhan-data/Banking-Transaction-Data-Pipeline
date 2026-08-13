@@ -14,15 +14,14 @@ def transform_records(valid_data):
         df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'],errors='coerce')
 
         # 2. Convert account number to string format
-        print("Convert acoount number to string format")
-        df['account_number'] = df['account_number'].astype(str)        
+        print("Convert account number to string format")
+        # Convert float account numbers to nullable integer 'Int64' to strip trailing '.0', then cast to string
+        df['account_number'] = pd.to_numeric(df['account_number'], errors='coerce').astype('Int64').astype('str')
 
         # 3. Remove duplicate records
         initial_records_count = len(df)
         print("Removing duplicate records")
         df = df.drop_duplicates()
-        final_records_count = len(df)
-        print(f"Final records after removing {df.duplicated().sum()} duplicated rows ", final_records_count)
 
         # 4. Trim leading/trailing spaces
         cat_col = df.select_dtypes('object')
@@ -48,4 +47,5 @@ def transform_records(valid_data):
         return df
 
     except Exception as err:
-        print("Error: ",err)
+        print("Error during data transformation framework: ", err)
+        raise err
