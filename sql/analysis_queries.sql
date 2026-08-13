@@ -1,3 +1,4 @@
+
 -- 1. Total transaction amount by region.
 SELECT 
 b.region,
