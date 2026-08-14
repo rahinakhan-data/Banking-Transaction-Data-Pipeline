@@ -44,7 +44,6 @@ FRAUD_CSV_PATH = os.path.join(FRAUD_DIR, 'fraud_transactions.csv')
 # ===================================================================
 # 4. SECURE DATABASE CONFIGURATION (Task 15 & Task 16 Compliant)
 # ===================================================================
-# Variables hardcode karne ke badle .env se fetch kiye gaye hain
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
