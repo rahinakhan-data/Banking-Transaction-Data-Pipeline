@@ -91,7 +91,6 @@ def generate_dim_date():
 
     date_df.to_sql(name='temp_date_stg', con=engine, if_exists='replace', index=False)
 
-    # Step B: Single direct native SQL call se unique values warehouse me push karein
     upsert_query = """
         INSERT INTO warehouse.dim_date (date_key, full_date, year, quarter, month, month_name, day, day_of_week)
         SELECT date_key, full_date, year, quarter, month, month_name, day, day_of_week 
