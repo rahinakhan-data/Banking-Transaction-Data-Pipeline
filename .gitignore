@@ -14,3 +14,4 @@ quarantine/
 
 # Local environment variables
 .env
+airflow/.env

@@ -243,7 +243,7 @@ def load_records(full_processed_data):
     print("\n","*="*50)
     print("--- Clean Data Loading Started ---")
 
-     # 1. Pipeline Start log karo (Task 12)
+     # 1. Pipeline Start log  (Task 12)
     run_id = log_pipeline_status(status="STARTED")
 
     try:

@@ -1,3 +1,5 @@
+
+
 -- create table transactions_staging inside staging schema 
 CREATE TABLE staging.transactions_staging(
 	transaction_id VARCHAR(50),
