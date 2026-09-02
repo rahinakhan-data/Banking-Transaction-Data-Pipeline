@@ -150,3 +150,23 @@ python src/main.py
 The framework executes native database-level validation queries to capture telemetry for:
 * **Completeness Validation:** Identifies if any row contains missing or NULL transaction identifiers.
 * **Math Boundary Rule:** Catches zero or negative amounts escaping downstream validation layers.
+
+## Week 4: Apache Airflow Orchestration & Data Quality
+
+### Pipeline Workflow Topology
+The entire ETL workflow is orchestrated via Apache Airflow across 11 synchronized processing states:
+`start` ➔ `init_database` ➔ `extract_data` ➔ `validate_data` ➔ `transform_data` ➔ `detect_fraud` ➔ `load_staging` ➔ `load_dimensions` ➔ `load_fact` ➔ `run_quality_checks` ➔ `write_audit_log` ➔ `end`
+
+### Production Configuration Parameters
+* **Orchestration Owner Registry:** `data_engineering_team`
+* **Automated Run Scheduling:** `@daily` (Configured to process financial incoming ledger feeds automatically at midnight).
+* **Fault Tolerance Gateways:** Configured with `2 Retries` spaced across `5-minute` back-off intervals.
+* **Idempotency Safeguard:** `catchup=False` to explicitly prevent automatic backfilling stress during server outages.
+
+### Automated 6-Point Database Quality Controls
+1. Total filtration of any duplicate financial transaction identifiers in the staging layer.
+2. Complete schema validation ensuring zero NULL transaction records populate the target tables.
+3. Automated Foreign Key Integrity validations to verify that all transactional lines accurately resolve to valid dimension tracks.
+4. Active Row-Count evaluation checks ensuring target analytical schemas successfully receive records.
+5. Out-of-bounds dataset volume checking to trigger system warnings on abnormally low loads.
+6. Validation checks explicitly preventing invalid non-positive or negative financial transfer values from writing into systems.
