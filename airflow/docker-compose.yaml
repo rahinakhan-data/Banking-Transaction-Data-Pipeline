@@ -87,6 +87,9 @@ x-airflow-common:
     - ./data:/opt/airflow/data
     - ./include:/opt/airflow/include
     - ./raw_data:/opt/airflow/raw_data
+    - ../src:/opt/airflow/src 
+    - ../raw_data:/opt/airflow/raw_data  
+    - ../sql:/opt/airflow/sql                                        
 
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -103,6 +106,8 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
+    ports:
+      - "5435:5432"
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
