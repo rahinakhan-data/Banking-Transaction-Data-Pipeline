@@ -3,14 +3,15 @@
 An automated, production-grade Data Engineering pipeline designed to ingest, validate, transform, and profile multi-regional banking transaction datasets (North, South, and West). This architecture moves raw data through an automated ETL cycle directly into a highly optimized **PostgreSQL Star Schema Data Warehouse Framework** featuring dynamic audit logging, strict quality checking thresholds, and advanced risk profiling.
 
 ---
-
 ## Project Overview
 Financial institutions generate massive volumes of transaction data across different regional nodes daily. This project builds the production infrastructure to:
-* **Programmatic Ingestion & Merge:** Dynamically streams multi-region CSV datasets into a unified master ledger without manual interaction.
-* **Strict Quality Safeguards:** Filters missing elements, negative amounts, or bad schemas, routing corrupted artifacts straight to a quarantine layer.
-* **Advanced Risk Analytics:** Flags suspicious behavioral profiles based on frequency anomalies and financial compliance value boundaries.
-* **Star Schema Warehousing:** Normalizes unstructured data streams into optimized PostgreSQL Dimension and Fact tables using relational constraints.
-* **Dynamic Process Auditing:** Automatically logs execution durations, telemetry counts, and structural integrity reports for every single batch run.
+* **Automatic Ingestion:** Automatically reads and merges CSV files from different regions into one big dataset.
+* **Data Quality Guards:** Drops bad records (like missing data or negative amounts) and moves them to a separate quarantine folder.
+* **Fraud Detection:** Flags suspicious behavioral profiles based on frequency anomalies and financial compliance value boundaries.
+* **Star Schema Warehousing:** Organizes clean messy files into neat PostgreSQL Dimension and Fact tables.
+* **Automated Scheduling (Airflow):** Runs the entire 11-step pipeline automatically every night at midnight without any manual work.
+* **Smart Retry System:** Automatically tries a failed step again 2 times before giving up, so the pipeline does not crash during minor database issues.
+* **True Audit Trail Logs:** Uses Airflow XCom to track exact file counts from start to finish, saving accurate run summaries into the database.
 
 ---
 
@@ -20,7 +21,7 @@ The source layer integrates production transaction feeds from three distinct geo
 * **`south_transactions.csv`**: Performance logs tracking corporate and retail branches in the South region.
 * **`west_transactions.csv`**: Transactional data packets from digital and physical channels in the West region.
 
-### Core Core Attributes Profiled:
+### Core Attributes Profiled:
 * `transaction_id`: The unique tracking identification number for each transaction (Primary Key baseline).
 * `account_number`: The alphanumeric bank account number used for the financial interaction.
 * `customer_id`: The unique profile identification number of the customer who owns the account.
@@ -109,7 +110,6 @@ Banking_Data_Pipeline/
 * **Database Driver & Object Mapping:** SQLAlchemy, Psycopg2-binary
 * **Visualization Layer:** Matplotlib, Seaborn
 * **Configuration & Security Management:** Python-dotenv
-
 ---
 
 ## ETL Process
@@ -184,7 +184,6 @@ CREATE TABLE audit.etl_run_log (
    
 ```
 
-
 ## Airflow Setup
 1. Copy the project files inside your Airflow environment paths (usually `~/airflow/dags`).
 2. Open your terminal and install all application package requirements:
@@ -197,11 +196,14 @@ CREATE TABLE audit.etl_run_log (
    airflow webserver -p 8080
    airflow scheduler
    ```
-
 ---
 
 ## DAG Structure & Task Dependencies
+       
+```text
        [ start ]
+           |
+     [ init_database ]
            |
      [ extract_data ]
            |
@@ -222,9 +224,11 @@ CREATE TABLE audit.etl_run_log (
    [ write_audit_log ]
            |
         [ end ]
-The pipeline connects and schedules 11 synchronized processing states in a clean row:
+```
 
 ## Task Dependencies
+The pipeline connects and schedules 11 synchronized processing states in a clean row:
+
 ```python
 start >> extract_task >> validate_task >> transform_task >> fraud_detection_task
 fraud_detection_task >> load_staging_task >> load_dimensions_task >> load_fact_task
@@ -255,16 +259,15 @@ DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 ```
 ---
 
-## 🏃 How to Run the Project
+## How to Run the Project
 * **Option 1 (Using Airflow Dashboard):** Open `http://localhost:8080` in your web browser, find the `banking_transaction_pipeline` DAG tag, turn it on, and click **Trigger DAG**.
 * **Option 2 (Using Local Terminal Command):** Run the central controller script directly using your local python command line:
   ```bash
   python src/main.py
   ```
-
 ---
 
-## 🔍 Data Quality Checks
+## Data Quality Checks
 
 ### Airflow Production Settings
 * **Owner Handle:** `data_engineering_team`
@@ -283,17 +286,16 @@ To keep metrics matching perfectly across all logs (**True Audit Trail**), the q
 
 ---
 
-## 📊 Monitoring Logs
+## Monitoring Logs
 You can easily track the health, status, and raw row histories of every pipeline execution by running this SQL query inside pgAdmin:
 
 ```sql
 SELECT run_id, pipeline_name, status, records_extracted, records_valid, records_rejected, records_loaded, fraud_records, end_time - start_time AS execution_duration
 FROM audit.etl_run_log ORDER BY start_time DESC;
 ```
-
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### 1. Data Mismatch Errors (e.g., Extracted: 300,000 vs 297,937 in logs)
 * **Symptom:** Task validation logs report differing numbers for raw ingestion counts vs database rows.
