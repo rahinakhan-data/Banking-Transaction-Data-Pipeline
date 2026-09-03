@@ -15,6 +15,8 @@ CREATE TABLE staging.transactions_staging(
 	fraud_flag VARCHAR(5)
 );
 SELECT * FROM staging.transactions_staging
+SELECT COUNT(*) FROM staging.transactions_staging
+
 
 -- CREATE DIMENSION TABLES  
 -- i) Customer Dimension
@@ -70,6 +72,7 @@ CREATE TABLE IF NOT EXISTS audit.etl_run_log(
 	records_extracted INT DEFAULT 0,
 	records_valid INT DEFAULT 0,
 	records_rejected INT DEFAULT 0,
+	records_loaded INT DEFAULT 0,
 	fraud_records INT DEFAULT 0,
 	status VARCHAR(50),
 	error_message TEXT
