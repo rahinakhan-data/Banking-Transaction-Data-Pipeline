@@ -7,7 +7,6 @@ from sqlalchemy import create_engine, text
 from database import engine, bulk_insert, execute_query, create_connection, close_connection
 from config import CLEAN_CSV_PATH
 
-
 # ===================================================================
 # Task 4 – Load Week 2 Output into PostgreSQL
 # ===================================================================
@@ -99,11 +98,11 @@ def generate_dim_date():
     """
     execute_query(upsert_query)
     print("--- Date Dimension Generation Completed ---")
+    print("--- Data are successfully stored in Date Dimension Table")
 
 # ====================================================================
 # Task 9 -  Load Fact Table
 # ====================================================================
-
 def load_fact_table():
     print("\n","*="*50)
     print("\n--- Fact Table Transformation & Loading Started ---")
@@ -124,7 +123,6 @@ def load_fact_table():
             LEFT JOIN warehouse.dim_branch b ON stg.branch_code = b.branch_code
             ON CONFLICT (transaction_id) DO NOTHING;
         """
-
     execute_query(fact_insert_query)
     print("--- Fact Table Transformation & Loading Completed ---")
 
@@ -165,14 +163,19 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
         success_query = """
             UPDATE audit.etl_run_log 
             SET end_time = :end_time, records_extracted = :extracted, records_valid = :valid, 
-                records_rejected = :rejected, fraud_records = :fraud, status = 'SUCCESS'
+                records_rejected = :rejected, records_loaded = :loaded, fraud_records = :fraud, status = 'SUCCESS'
             WHERE run_id = :run_id;
         """
         try:
             conn = create_connection()
             conn.execute(text(success_query), {
-                "end_time": current_time, "extracted": metrics['extracted'], "valid": metrics['valid'],
-                "rejected": metrics['rejected'], "fraud": metrics['fraud'], "run_id": run_id
+                "end_time": current_time, 
+                "extracted": int(metrics.get('extracted', 0)), 
+                "valid": int(metrics.get('valid', 0)),
+                "rejected": int(metrics.get('rejected', 0)),
+                "loaded": int(metrics.get('loaded', 0)), 
+                "fraud": int(metrics.get('fraud', 0)), 
+                "run_id": int(run_id)
             })
 
             if hasattr(conn, 'commit'):
@@ -206,14 +209,14 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
 # =========================================================================
 # Task 13 - Data Validation After Loading
 # =========================================================================
-
-def run_data_validation(run_id):
+def run_data_validation(run_id, total_raw_extracted ):
     print("\n","*="*50)
     print("\n--- STARTING DATA VALIDATION CHECKS ---")
     conn = create_connection()
 
     # .scalar() captures single numeric responses out of COUNT queries perfectly
-    extracted = conn.execute(text("SELECT COUNT(*) FROM staging.transactions_staging;")).scalar()
+    # extracted = conn.execute(text("SELECT COUNT(*) FROM staging.transactions_staging;")).scalar()
+    extracted = total_raw_extracted 
     valid = conn.execute(text("SELECT COUNT(*) FROM warehouse.fact_transactions;")).scalar()
     fraud = conn.execute(text("SELECT COUNT(*) FROM warehouse.fact_transactions WHERE fraud_flag = 'YES';")).scalar()
 
@@ -233,13 +236,13 @@ def run_data_validation(run_id):
 
     print(f"Staging Records: {extracted}")
     print(f"Valid Fact Records Loaded: {valid}")
-    print(f"Rejected/Duplicate Records: {rejected}")
+    print(f"Rejected Records: {rejected}")
     print(f"Fraud Records Detected: {fraud}")
     print(f"Integrity Issues -> NULL IDs: {null_ids} | Invalid Amounts: {invalid_amounts} | Orphan Foreign Keys: {null_fks}")
 
-    return {"extracted": extracted, "valid": valid, "rejected": rejected, "fraud": fraud}
+    return {"extracted": extracted, "valid": valid, "rejected": rejected,"loaded":valid, "fraud": fraud}
 
-def load_records(full_processed_data):
+def load_records(full_processed_data, total_raw_extracted ):
     print("\n","*="*50)
     print("--- Clean Data Loading Started ---")
 
@@ -249,6 +252,8 @@ def load_records(full_processed_data):
     try:
         # Create the copy of incoming DataFrame to ensure the original dataframe is not modified
         df = full_processed_data.copy()
+
+        total_raw_extracted = total_raw_extracted 
 
         # Save the clean data to the specified file path
         df.to_csv(CLEAN_CSV_PATH, index = False)
@@ -266,7 +271,7 @@ def load_records(full_processed_data):
         # Run Task 9: Final Star Schema Fact table compilation
         load_fact_table()
 
-        metrics = run_data_validation(run_id)
+        metrics = run_data_validation(run_id,total_raw_extracted)
 
         # 3. Pipeline Success log (Task 12)
         log_pipeline_status(run_id=run_id, status="SUCCESS", metrics=metrics)
