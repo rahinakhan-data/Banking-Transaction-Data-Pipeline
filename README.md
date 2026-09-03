@@ -203,8 +203,6 @@ CREATE TABLE audit.etl_run_log (
 ```text
        [ start ]
            |
-     [ init_database ]
-           |
      [ extract_data ]
            |
     [ validate_data ]
