@@ -25,10 +25,10 @@ if __name__ == "__main__":
         # DATA EXTRACTION STAGE
         # ------------------------------------------------------------
         extracted_df = extract_records(NORTH_FILE_PATH, SOUTH_FILE_PATH, WEST_FILE_PATH)
-        total_processed = len(extracted_df)
+        total_raw_extracted  = len(extracted_df)
         
         # Step: Extraction Completed
-        logger.info(f"Extraction Completed - Processed: {total_processed} rows")
+        logger.info(f"Extraction Completed - Processed: {total_raw_extracted } rows")
 
         # -----------------------------------------------------------
         # DATA VALIDATION
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         # --------------------------------------------------------------
         # DATA LOAD STAGE
         # --------------------------------------------------------------
-        load_records(full_processed_df)
+        load_records(full_processed_df, total_raw_extracted )
         # Step: Data Loaded Successfully
         logger.info("Data Loaded Successfully")
         
