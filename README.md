@@ -34,10 +34,23 @@ The source layer integrates production transaction feeds from three distinct geo
 * `fraud_flag`: Dynamic behavioral analytics classification tag applied by the risk engine (`YES` / `NO`).
 
 ---
+### Main Data Columns:
+`transaction_id` (Unique Key), `account_number`, `customer_id`, `transaction_datetime`, `transaction_type`, `amount`, `branch_code`, `channel`, `status`, `region`, `fraud_flag`.
+
+---
 
 ## Folder Structure Layout
 ```text
 Banking_Data_Pipeline/
+│
+├── airflow/                        # Core Apache Airflow setup folder (Added in Week 4)
+│   ├── config/                     # Settings file to configure the Airflow environment
+│   ├── dags/                       # Folder where workflow automation scripts live
+│   │   ├── banking_transaction_pipeline.py  # Master script running all tasks in order
+│   │   └── db_init_util.py         # Utility script to set up database tables automatically
+│   ├── include/                    # External static binary hooks or metadata sets
+│   ├── logs/                       # History folder tracking everyday step-by-step task logs
+│   └── plugins/                    # Custom custom tools or extensions added to Airflow
 │
 ├── raw_data/                       # Original, raw regional source CSV files (Excluded from Git)
 │   ├── north_transactions.csv
@@ -99,7 +112,7 @@ Banking_Data_Pipeline/
 
 ---
 
-## Pipeline Architecture Workflow
+## ETL Process
 The operational workflow moves data sequentially through decoupled modular layers matching standard dimensional model guidelines:
 
 1. **Extraction (`extract.py`)**: Automatically scans path parameters from `config.py` to stream multi-region input feeds from `raw_data/` into memory safely.
@@ -146,27 +159,146 @@ To launch the end-to-end automated ETL framework script, run the main controller
 python src/main.py
 ```
 ---
-## Data Quality Checks
-The framework executes native database-level validation queries to capture telemetry for:
-* **Completeness Validation:** Identifies if any row contains missing or NULL transaction identifiers.
-* **Math Boundary Rule:** Catches zero or negative amounts escaping downstream validation layers.
+### 5. PostgreSQL Setup
+To run the project, ensure your PostgreSQL database is instantiated with the following schema spaces:
 
-## Week 4: Apache Airflow Orchestration & Data Quality
+```sql
+-- Create necessary isolated schemas
+CREATE SCHEMA IF NOT EXISTS staging;
+CREATE SCHEMA IF NOT EXISTS warehouse;
+CREATE SCHEMA IF NOT EXISTS audit;
 
-### Pipeline Workflow Topology
-The entire ETL workflow is orchestrated via Apache Airflow across 11 synchronized processing states:
-`start` ➔ `init_database` ➔ `extract_data` ➔ `validate_data` ➔ `transform_data` ➔ `detect_fraud` ➔ `load_staging` ➔ `load_dimensions` ➔ `load_fact` ➔ `run_quality_checks` ➔ `write_audit_log` ➔ `end`
+-- Structure for the Audit Log Table
+CREATE TABLE audit.etl_run_log (
+   run_id SERIAL PRIMARY KEY,
+   pipeline_name VARCHAR(100),
+   start_time TIMESTAMP,
+   end_time TIMESTAMP,
+   records_extracted INT,
+   records_valid INT,
+   records_rejected INT,
+   records_loaded INT,
+   fraud_records INT,
+   status VARCHAR(20),
+   error_message TEXT);
+   
+```
 
-### Production Configuration Parameters
-* **Orchestration Owner Registry:** `data_engineering_team`
-* **Automated Run Scheduling:** `@daily` (Configured to process financial incoming ledger feeds automatically at midnight).
-* **Fault Tolerance Gateways:** Configured with `2 Retries` spaced across `5-minute` back-off intervals.
-* **Idempotency Safeguard:** `catchup=False` to explicitly prevent automatic backfilling stress during server outages.
 
-### Automated 6-Point Database Quality Controls
-1. Total filtration of any duplicate financial transaction identifiers in the staging layer.
-2. Complete schema validation ensuring zero NULL transaction records populate the target tables.
-3. Automated Foreign Key Integrity validations to verify that all transactional lines accurately resolve to valid dimension tracks.
-4. Active Row-Count evaluation checks ensuring target analytical schemas successfully receive records.
-5. Out-of-bounds dataset volume checking to trigger system warnings on abnormally low loads.
-6. Validation checks explicitly preventing invalid non-positive or negative financial transfer values from writing into systems.
+## Airflow Setup
+1. Copy the project files inside your Airflow environment paths (usually `~/airflow/dags`).
+2. Open your terminal and install all application package requirements:
+   ```bash
+   pip install apache-airflow pandas numpy sqlalchemy psycopg2-binary python-dotenv matplotlib seaborn
+   ```
+3. Initialize the backend database and boot up the server tasks:
+   ```bash
+   airflow db init
+   airflow webserver -p 8080
+   airflow scheduler
+   ```
+
+---
+
+## DAG Structure & Task Dependencies
+       [ start ]
+           |
+     [ extract_data ]
+           |
+    [ validate_data ]
+           |
+   [ transform_data ]
+           |
+    [ detect_fraud ]
+           |
+    [ load_staging ]
+           |
+   [ load_dimensions ]
+           |
+      [ load_fact ]
+           |
+  [ run_quality_checks ]
+           |
+   [ write_audit_log ]
+           |
+        [ end ]
+The pipeline connects and schedules 11 synchronized processing states in a clean row:
+
+## Task Dependencies
+```python
+start >> extract_task >> validate_task >> transform_task >> fraud_detection_task
+fraud_detection_task >> load_staging_task >> load_dimensions_task >> load_fact_task
+load_fact_task >> quality_checks_task >> audit_task >> end
+```
+
+##  Configuration (`config.py`)
+This file uses **Dynamic Hostname Recognition**. It automatically detects if the code is running inside a Docker Container or on a local desktop terminal, switching the database host address dynamically so it never crashes:
+
+```python
+import os
+
+DB_USER = os.getenv('DB_USER', 'airflow')
+DB_PASSWORD = os.getenv('DB_PASSWORD', 'airflow')
+DB_PORT = os.getenv('DB_PORT', '5432')
+DB_NAME = os.getenv('DB_NAME', 'airflow')
+
+# DYNAMIC HOSTNAME RECOGNITION:
+if os.path.exists('/.dockerenv') or 'AIRFLOW_HOME' in os.environ:
+   # Inside Airflow/Docker container environment
+   DB_HOST = os.getenv('DB_HOST', 'postgres')
+else:
+   # Running via local terminal instance (main.py)
+   DB_HOST = 'localhost'
+
+# Connection string syntax creation for SQLAlchemy Engine
+DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+```
+---
+
+## 🏃 How to Run the Project
+* **Option 1 (Using Airflow Dashboard):** Open `http://localhost:8080` in your web browser, find the `banking_transaction_pipeline` DAG tag, turn it on, and click **Trigger DAG**.
+* **Option 2 (Using Local Terminal Command):** Run the central controller script directly using your local python command line:
+  ```bash
+  python src/main.py
+  ```
+
+---
+
+## 🔍 Data Quality Checks
+
+### Airflow Production Settings
+* **Owner Handle:** `data_engineering_team`
+* **Schedule:** `@daily` (Runs automatically every night at midnight).
+* **Error Handling:** If a step fails, it tries again **2 times**, waiting **5 minutes** between retries.
+* **Catchup Safety:** `catchup=False` (Prevents running old missed tasks automatically if the server was turned off).
+
+### Automated 6-Point Data Controls
+To keep metrics matching perfectly across all logs (**True Audit Trail**), the quality check task pulls initial row counts straight from the live extraction state using Airflow XCom.
+1. Removes all duplicate transaction identification keys in the staging area.
+2. Blocks any empty (NULL) transaction records from entering final analytical tables.
+3. Runs foreign key checks to link transactions perfectly to customer and branch details.
+4. Checks if the final data warehouse tables actually received new rows of data.
+5. Sends an operational alert flag if the total data load look suspiciously low.
+6. Stops any transaction rows that have an invalid zero or negative money amount.
+
+---
+
+## 📊 Monitoring Logs
+You can easily track the health, status, and raw row histories of every pipeline execution by running this SQL query inside pgAdmin:
+
+```sql
+SELECT run_id, pipeline_name, status, records_extracted, records_valid, records_rejected, records_loaded, fraud_records, end_time - start_time AS execution_duration
+FROM audit.etl_run_log ORDER BY start_time DESC;
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### 1. Data Mismatch Errors (e.g., Extracted: 300,000 vs 297,937 in logs)
+* **Symptom:** Task validation logs report differing numbers for raw ingestion counts vs database rows.
+* **Resolution:** Verify your run_quality_checks task signature matches `run_data_validation(run_id, extracted_raw_count)`. Ensure `extracted_raw_count` is passed explicitly from the raw extraction `XCom` state rather than calculated via a `COUNT(*)` query on the staging table.
+
+### 2. Database Connection Errors (`psycopg2.OperationalError`)
+* **Fix:** Look at where your script is running. Standalone scripts running on a local desktop require `DB_HOST = 'localhost'`, while workflows running inside a Docker network bridge require pointing to the container network hostname.
+
