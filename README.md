@@ -198,7 +198,7 @@ CREATE TABLE audit.etl_run_log (
    ```
 ---
 
-## DAG Structure & Task Dependencies
+## DAG Structure
        
 ```text
        [ start ]
