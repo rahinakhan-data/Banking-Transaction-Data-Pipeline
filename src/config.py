@@ -52,10 +52,17 @@ FRAUD_CSV_PATH = os.path.join(FRAUD_DIR, 'fraud_transactions.csv')
 
 DB_USER = os.getenv('DB_USER', 'airflow')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'airflow')
-DB_HOST = os.getenv('DB_HOST', 'postgres')
+# DB_HOST = os.getenv('DB_HOST', 'postgres')
 DB_PORT = os.getenv('DB_PORT', '5432')
 DB_NAME = os.getenv('DB_NAME', 'airflow')
 
+# DYNAMIC HOSTNAME RECOGNITION:
+if os.path.exists('/.dockerenv') or 'AIRFLOW_HOME' in os.environ:
+    # Inside Airflow/Docker container environment
+    DB_HOST = os.getenv('DB_HOST', 'postgres')
+else:
+    # Running via local terminal instance (main.py)
+    DB_HOST = 'localhost'
 
 # Connection string syntax creation for SQLAlchemy Engine
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
