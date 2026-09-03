@@ -15,3 +15,7 @@ quarantine/
 # Local environment variables
 .env
 airflow/.env
+
+# Exclude local temporary data stages
+processed/temp_*.csv
+airflow/logs/
