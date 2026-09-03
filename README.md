@@ -110,6 +110,8 @@ Banking_Data_Pipeline/
 * **Database Driver & Object Mapping:** SQLAlchemy, Psycopg2-binary
 * **Visualization Layer:** Matplotlib, Seaborn
 * **Configuration & Security Management:** Python-dotenv
+* **Orchestration Tool:** Apache Airflow (Added in Week 4)
+
 ---
 
 ## ETL Process
@@ -184,18 +186,20 @@ CREATE TABLE audit.etl_run_log (
    
 ```
 
-## Airflow Setup
-1. Copy the project files inside your Airflow environment paths (usually `~/airflow/dags`).
-2. Open your terminal and install all application package requirements:
+## Airflow Setup (Using Docker)
+
+1. Make sure **Docker** and **Docker Compose** are installed on your system.
+2. Put your environment configuration variables inside the `.env` file in the root folder.
+3. Open your terminal in the project folder and start the Airflow containers using docker-compose:
    ```bash
-   pip install apache-airflow pandas numpy sqlalchemy psycopg2-binary python-dotenv matplotlib seaborn
+   docker compose up -d
    ```
-3. Initialize the backend database and boot up the server tasks:
-   ```bash
-   airflow db init
-   airflow webserver -p 8080
-   airflow scheduler
+4. Wait for a few seconds, then open your web browser and go to:
+   ```text
+   http://localhost:8080
    ```
+5. Log in using your credentials (default is usually user: `airflow` | password: `airflow`) and unpause the `banking_transaction_pipeline` DAG.
+
 ---
 
 ## DAG Structure
