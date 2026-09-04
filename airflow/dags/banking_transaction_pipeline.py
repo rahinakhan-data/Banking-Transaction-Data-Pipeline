@@ -252,7 +252,7 @@ def write_audit_log(**kwargs):
 default_args = {
                 "owner": "data_engineering_team",
                 "retries": 2,
-                "retry_delay": timedelta(minutes=1)
+                "retry_delay": timedelta(minutes=5)
             }
 
 # Create DAG
@@ -260,7 +260,7 @@ with DAG(
             dag_id = 'banking_transaction_pipeline', 
             start_date = datetime(2026,9,1), 
             default_args = default_args, 
-            schedule = None,
+            schedule="@daily",
             catchup = False,
             tags = ['banking', 'etl', 'clean_code'],
         ) as dag:
