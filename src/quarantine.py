@@ -11,6 +11,12 @@ quarantine_file_path = os.path.join(quarantine_dir, 'quarantine_records.csv')
 
 def quarantine_records(invalid_data):
 
+     # CRITICAL FIX: return if not found any invalid records
+    if invalid_data is None or invalid_data.empty:
+        print("Total Invalid Records: 0. Skipping quarantine processing loop safely.")
+        print("--- Quarantine Processing Completed ---")
+        return invalid_data 
+
     df = invalid_data.copy()
     try:
         print("\n","*="*50)
