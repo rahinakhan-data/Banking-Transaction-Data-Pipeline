@@ -15,7 +15,7 @@ def load_csv_to_staging():
     print("\n","*="*50)
     print("--- PostgreSQL Staging Load Started ---")
 
-    # 🎯 STEP 1: TASK 2 INCREMENTAL DATA GAP CRASH PROTECTION
+    # STEP 1: TASK 2 INCREMENTAL DATA GAP CRASH PROTECTION
     # Check if file doesn't exist or its physical file size is completely zero (0 bytes)
     if not os.path.exists(CLEAN_CSV_PATH) or os.path.getsize(CLEAN_CSV_PATH) == 0:
         print("💡 Incremental Sync Notice: Central clean CSV data payload is empty (0 new rows). Bypassing execution safely.")
@@ -23,7 +23,6 @@ def load_csv_to_staging():
         print("--- Staging Loading Completed Safely (Empty Sync Window) ---")
         return
     try:
-
         df = pd.read_csv(CLEAN_CSV_PATH)
 
         if df.empty:
