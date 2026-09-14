@@ -28,12 +28,20 @@ def insert_data(query_string, param_dict):
         connection.execute(text(query_string),param_dict)
 
 #v) Define function to load an entire pandas dataframe into a database table at once
+
 def bulk_insert(table_name, schema_name, dataframe):
+    if dataframe.empty:
+        print("Dataframe is empty. Skipping bulk insertion step.")
+        return
+    print(f"Executing batch generation... Preparing {len(dataframe):,} rows.")
+
     dataframe.to_sql(
         name = table_name,
         con = engine,
         schema = schema_name,
         if_exists = 'append',
-        index = False
+        index = False,
+        chunksize = 10000,
+        method = 'multi'
     )    
-    print(f"Loaded {len(dataframe)} rows into {schema_name}.{table_name} successfully.")
+    print(f"Successfully loaded {len(dataframe):,} records into {schema_name}.{table_name} via Optimized multi-chunks.")
