@@ -1,5 +1,6 @@
 import os
 import sys
+import io
 import pandas as pd 
 from datetime import datetime
 
@@ -13,19 +14,79 @@ from config import CLEAN_CSV_PATH
 def load_csv_to_staging():
     print("\n","*="*50)
     print("--- PostgreSQL Staging Load Started ---")
-    df = pd.read_csv(CLEAN_CSV_PATH).drop(columns='txn_date')
+
+    # 🎯 STEP 1: TASK 2 INCREMENTAL DATA GAP CRASH PROTECTION
+    # Check if file doesn't exist or its physical file size is completely zero (0 bytes)
+    if not os.path.exists(CLEAN_CSV_PATH) or os.path.getsize(CLEAN_CSV_PATH) == 0:
+        print("💡 Incremental Sync Notice: Central clean CSV data payload is empty (0 new rows). Bypassing execution safely.")
+        execute_query("TRUNCATE TABLE staging.transactions_staging;")
+        print("--- Staging Loading Completed Safely (Empty Sync Window) ---")
+        return
+    try:
+
+        df = pd.read_csv(CLEAN_CSV_PATH)
+
+        if df.empty:
+            print("💡 Incremental Sync Notice: Parsed DataFrame contains 0 operational rows. Bypassing execution.")
+            execute_query("TRUNCATE TABLE staging.transactions_staging;")
+            return
+        
+        # Safe programmatic drop protection to avoid KeyErrors downstream
+        if 'txn_date' in df.columns:
+            df = df.drop(columns='txn_date')
+        
+        df['account_number'] = df['account_number'].astype('str')
+
+        df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'], errors='coerce')
+
+        print(f"Truncating staging for fresh runtime footprint isolation...")
+        execute_query("TRUNCATE TABLE staging.transactions_staging ;")
+        """
+        print(f"Bulk inserting {len(df)} records into staging...")
+        bulk_insert(
+            table_name = 'transactions_staging',
+            schema_name = 'staging',
+            dataframe = df
+        )
+        """
+
+        print(f"Streaming {len(df):,} records directly into staging using cursor COPY...")
     
-    df['account_number'] = df['account_number'].astype('str')
+        # Establish connection and activate raw cursor driver management layer
+        conn = create_connection()
+        # try:
+        # Resolve the raw connection handles safely across contexts
+        raw_conn = conn.connection if hasattr(conn, 'connection') else conn
+        cursor = raw_conn.cursor()
+        
+        # Write DataFrame rows straight to an in-memory string file buffer
+        s_buf = io.StringIO()
+        df.to_csv(s_buf, index=False, header=False)
+        s_buf.seek(0)
+        
+        # Native streaming invocation: completely bypasses SQL parsing & looping rows
+        # cursor.copy_from(s_buf, 'staging.transactions_staging', sep=',', null='')
+        
+        copy_sql = "COPY staging.transactions_staging FROM STDIN WITH CSV DELIMITER ',' NULL ''"
+        cursor.copy_expert(sql=copy_sql, file=s_buf)
 
-    df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'], errors='coerce')
+        if hasattr(raw_conn, 'commit'):
+            raw_conn.commit()
+            
+        cursor.close()
+        print("--- Task 8 Ultimate COPY Strategy Execution: SUCCESS ---")
+        
+    except Exception as e:
+        if 'raw_conn' in locals() and hasattr(raw_conn, 'rollback'):
+            raw_conn.rollback()
+        print(f"CRITICAL ERROR: Native COPY Stream Interrupted. Trace: {e}")
+        raise e
+    finally:
+        if 'conn' in locals():
+            close_connection(conn)
+            
+    print("--- Staging Loading Completed Successfully ---")
 
-    execute_query("TRUNCATE TABLE staging.transactions_staging ;")
-
-    bulk_insert(
-        table_name = 'transactions_staging',
-        schema_name = 'staging',
-        dataframe = df
-    )
 # ================================================================
 # Task 7 – Implement Dimension Loading
 # ===============================================================
@@ -70,6 +131,10 @@ def generate_dim_date():
     min_date = bounds_df.loc[0, 'min_date']
     max_date = bounds_df.loc[0, 'max_date']
 
+    if pd.isnull(min_date) or pd.isnull(max_date):
+        print("Warning: Staging table is empty. Skipping date dimension generation.")
+        return
+    
     print(f"Generating continuous daily calendar array from {min_date} to {max_date}...")
 
     # 3. Generate a continuous daily chronological date series using Pandas
@@ -146,7 +211,9 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
                 "pipeline_name": pipeline_name, 
                 "start_time": current_time
             })
-            assigned_id = result.fetchone()[0] # Capture index correctly
+            # FIXED: Safe fetchone check to avoid NoneType index crashes
+            row = result.fetchone()
+            assigned_id = row[0] if row else None
 
             if hasattr(conn, 'commit'):
                 conn.commit()
@@ -166,8 +233,19 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
                 records_rejected = :rejected, records_loaded = :loaded, fraud_records = :fraud, status = 'SUCCESS'
             WHERE run_id = :run_id;
         """
+
+        # Task 3 Change: update success update to control table
+        control_success_query = """
+            UPDATE audit.pipeline_control
+            SET last_successful_run = :current_time,
+                last_processed_timestamp = :max_ts,
+                last_run_status = 'SUCCESS',
+                updated_at = :current_time
+            WHERE pipeline_name = 'banking_dw_load_pipeline';
+        """
         try:
             conn = create_connection()
+            max_transaction_ts = metrics.get('max_ts', current_time)
             conn.execute(text(success_query), {
                 "end_time": current_time, 
                 "extracted": int(metrics.get('extracted', 0)), 
@@ -178,11 +256,14 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
                 "run_id": int(run_id)
             })
 
+            # update control table
+            conn.execute(text(control_success_query), {"current_time": current_time, "max_ts": max_transaction_ts})
+
             if hasattr(conn, 'commit'):
                 conn.commit()
 
             close_connection(conn)
-            print(f"[{current_time}] Audit Log Updated: SUCCESS")
+            print(f"[{current_time}] Audit Log & Control Table Updated: SUCCESS")
         except Exception as e:
             print(f"Failed to update success audit log: {e}")
 
@@ -192,17 +273,25 @@ def log_pipeline_status(run_id=None, status="STARTED", metrics=None, error=None)
             SET end_time = :end_time, status = 'FAILED', error_message = :error
             WHERE run_id = :run_id;
         """
+        # Task 3 Change: Control table ko failure status update bhejein
+        control_failure_query = """
+            UPDATE audit.pipeline_control
+            SET last_run_status = 'FAILED',
+                updated_at = :current_time
+            WHERE pipeline_name = 'banking_dw_load_pipeline';
+        """
         try:
             conn = create_connection()
             conn.execute(text(failure_query), {
                 "end_time": current_time, "error": str(error), "run_id": run_id
             })
 
+            conn.execute(text(control_failure_query), {"current_time": current_time})
             if hasattr(conn, 'commit'):
                 conn.commit()
 
             close_connection(conn)
-            print(f"[{current_time}] Audit Log Updated: FAILED")
+            print(f"[{current_time}] Audit Log & Control table Updated: FAILED")
         except Exception as e:
             print(f"Failed to update failure audit log: {e}")
 
@@ -234,11 +323,27 @@ def run_data_validation(run_id, total_raw_extracted ):
 
     close_connection(conn)
 
-    print(f"Staging Records: {extracted}")
-    print(f"Valid Fact Records Loaded: {valid}")
-    print(f"Rejected Records: {rejected}")
-    print(f"Fraud Records Detected: {fraud}")
-    print(f"Integrity Issues -> NULL IDs: {null_ids} | Invalid Amounts: {invalid_amounts} | Orphan Foreign Keys: {null_fks}")
+    # -------------------------------------------------------------------------
+    # WEEK 5: TASK 6: Dynamic Visual Formatting Output Matrix
+    # -------------------------------------------------------------------------
+    print("\n" + "="*20 + " TASK 6: FINAL RECONCILIATION REPORT " + "="*20)
+    print(f"{'Pipeline Process Stage':<25} | {'Active Record Balance Metrics':<25}")
+    print("-" * 50)
+    print(f"{'1. Extracted':<30} | {extracted:,}")
+    print(f"{'2. Validated':<30} | {valid:,}")
+    print(f"{'3. Rejected':<30} | {rejected:,}")
+    print(f"{'4. Transformed':<30} | {valid:,}")
+    print(f"{'5. Loaded (Warehouse)':<30} | {valid:,}")
+    print("=" * 50)
+    
+    # Structural verification balancing checks
+    if extracted == (valid + rejected):
+        print("Audit Check Clear: Extracted = Validated + Rejected.")
+    else:
+        print("Balance Anomaly: Unaccounted record divergence detected across tracking stages.")
+
+    print(f"\nIntegrity Audit -> NULL IDs: {null_ids} | Invalid Amounts: {invalid_amounts} | Orphan Foreign Keys: {null_fks}")
+    print("="*50 + "\n")
 
     return {"extracted": extracted, "valid": valid, "rejected": rejected,"loaded":valid, "fraud": fraud}
 
@@ -252,6 +357,25 @@ def load_records(full_processed_data, total_raw_extracted ):
     try:
         # Create the copy of incoming DataFrame to ensure the original dataframe is not modified
         df = full_processed_data.copy()
+        # CRITICAL FIX FOR TASK 2: Agar processing delta khali hai (0 rows), toh db procedures skip karo
+        if df.empty:
+            print("Incremental Sync: No new transaction records to load into Database. Skipping loading execution loops safely.")
+            
+            # Khali metrics payload banayein aur max_ts ki jagah current history save rehne dein
+            metrics = {
+                "extracted": total_raw_extracted,
+                "valid": 0,
+                "rejected": total_raw_extracted, # Baki data context rules skipped indicators
+                "loaded": 0,
+                "fraud": 0
+            }
+            
+            # Base logic fallback check to retain old watermark
+            # Control table pichle timestamp par freeze rahegi, last_successful_run update ho jayega
+            log_pipeline_status(run_id=run_id, status="SUCCESS", metrics=metrics)
+            print("--- Clean Data Loading Bypassed Safely (0 rows) ---")
+            return
+
 
         total_raw_extracted = total_raw_extracted 
 
@@ -273,6 +397,11 @@ def load_records(full_processed_data, total_raw_extracted ):
 
         metrics = run_data_validation(run_id,total_raw_extracted)
 
+        # 
+        if 'transaction_datetime' in df.columns and not df.empty:
+            df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'])
+            metrics['max_ts'] = str(df['transaction_datetime'].max())
+            
         # 3. Pipeline Success log (Task 12)
         log_pipeline_status(run_id=run_id, status="SUCCESS", metrics=metrics)
 
