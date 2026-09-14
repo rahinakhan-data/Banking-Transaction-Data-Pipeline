@@ -9,14 +9,22 @@ def transform_records(valid_data):
         print("--- Transformation of Data Started ---")
 
         print("Initial Records : ", len(df))
+
+        total_rows = len(df)
+        print("Initial Records : ", total_rows)
+        
+        # Avoid crashing when empty incremental records pass through downstream
+        if total_rows == 0:
+            print("Incremental Sync: DataFrame contains 0 rows. Transformation Skipped.")
+            return df
+        
         # 1. Convert transaction date to proper datetime format
         print("Convert transaction date to proper datetime format")
         df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'],errors='coerce')
 
         # 2. Convert account number to string format
         print("Convert account number to string format")
-        # Convert float account numbers to nullable integer 'Int64' to strip trailing '.0', then cast to string
-        df['account_number'] = pd.to_numeric(df['account_number'], errors='coerce').astype('Int64').astype('str')
+        df['account_number'] = pd.to_numeric(df['account_number'], errors='coerce').dropna().astype('int64').astype(str)
 
         # 3. Remove duplicate records
         initial_records_count = len(df)
