@@ -8,18 +8,12 @@ ON b.branch_key = f.branch_key
 GROUP BY b.region
 ORDER BY total_transaction_amount DESC;
 
-
 -- 2. Total number of transactions by channel.
 SELECT channel,
 COUNT(*) as total_transactions
 FROM warehouse.fact_transactions
 GROUP BY channel
 ORDER BY total_transactions DESC;
-
-
-
-
-
 
 -- 3. Successful vs failed transactions.
 SELECT status,
@@ -39,10 +33,20 @@ ORDER BY total_value DESC
 LIMIT 10;
 
 -- 5. Daily transaction volume.
+EXPLAIN ANALYZE
 SELECT dt.full_date,
 COUNT(f.transaction_id) AS transaction_total_volume
 FROM warehouse.dim_date as dt JOIN warehouse.fact_transactions as f
 ON dt.date_key = f.date_key
+GROUP BY dt.full_date
+ORDER BY transaction_total_volume DESC;
+
+-- Week 5: Task 10 Query optimization
+EXPLAIN ANALYZE
+SELECT dt.full_date, 
+COUNT(*) AS transaction_total_volume
+FROM warehouse.dim_date dt 
+JOIN warehouse.fact_transactions f ON dt.date_key = f.date_key
 GROUP BY dt.full_date
 ORDER BY transaction_total_volume DESC;
 
@@ -56,6 +60,7 @@ GROUP BY dt.year, dt.month_name
 ORDER BY monthly_transaction_amount DESC;
 
 -- 7. Top 10 customers by transaction value.
+EXPLAIN ANALYZE
 SELECT c.customer_id,
 SUM(f.amount) as transaction_value
 FROM warehouse.dim_customer c JOIN warehouse.fact_transactions f
@@ -64,15 +69,42 @@ GROUP BY c.customer_id
 ORDER BY transaction_value DESC
 LIMIT 10;
 
+-- Week 5 Task 10: Query Optimization
+EXPLAIN ANALYZE
+WITH aggregated_customers AS (
+    SELECT customer_key, SUM(amount) AS transaction_value
+    FROM warehouse.fact_transactions
+    GROUP BY customer_key
+    ORDER BY transaction_value DESC LIMIT 10
+)
+SELECT c.customer_id, a.transaction_value
+FROM aggregated_customers a
+JOIN warehouse.dim_customer c ON a.customer_key = c.customer_key;
+
+
 -- 8. Number of fraud-flagged transactions by region.
+EXPLAIN ANALYZE
 SELECT 
 b.region,
 COUNT(*) as total_fraud_flagged
 FROM warehouse.dim_branch b JOIN warehouse.fact_transactions f
 ON b.branch_key = f.branch_key
-WHERE f.status = 'YES'
+WHERE f.fraud_flag = 'YES'
 GROUP BY b.region
 ORDER BY total_fraud_flagged DESC;
+
+-- Week 5 Task 10: Query Optimization
+EXPLAIN ANALYZE
+SELECT b.region, COUNT(*) AS total_fraud_flagged
+FROM warehouse.dim_branch b 
+JOIN (
+    SELECT branch_key 
+    FROM warehouse.fact_transactions 
+    WHERE fraud_flag = '1' OR fraud_flag = 'YES'
+) f ON b.branch_key = f.branch_key
+GROUP BY b.region
+ORDER BY total_fraud_flagged DESC;
+
 
 -- 9. Average transaction amount by transaction type.
 SELECT transaction_type,
