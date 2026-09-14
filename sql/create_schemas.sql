@@ -1,19 +1,6 @@
 CREATE SCHEMA IF NOT EXISTS staging;
-
 CREATE SCHEMA IF NOT EXISTS warehouse;
-
 CREATE SCHEMA IF NOT EXISTS audit;
-
-
-
-
-
-
-
-
-
-
-
 
 SELECT 'staging.transactions_staging' AS tbl, COUNT(*) FROM staging.transactions_staging
 UNION ALL
@@ -24,9 +11,3 @@ UNION ALL
 SELECT 'warehouse.dim_branch', COUNT(*) FROM warehouse.dim_branch
 UNION ALL
 SELECT 'warehouse.dim_date', COUNT(*) FROM warehouse.dim_date;
-
-
-
-
-
-
