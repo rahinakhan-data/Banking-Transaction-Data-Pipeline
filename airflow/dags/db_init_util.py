@@ -97,6 +97,35 @@ def initialize_database_structures():
                     error_message TEXT
                 );
             """))
+
+            # 8. 'audit.pipeline_control'
+            conn.execute(text(
+                """
+                    CREATE TABLE IF NOT EXISTS audit.pipeline_control (
+                        pipeline_name VARCHAR(100) PRIMARY KEY,
+                        last_successful_run TIMESTAMP,
+                        last_processed_timestamp TIMESTAMP,
+                        last_run_status VARCHAR(20),
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """
+            ))
+
+            # Seed Initial Checkpoint Record safely (Task 2 Fallback Protection)
+            conn.execute(text(
+                """
+                    INSERT INTO audit.pipeline_control (pipeline_name, last_run_status, last_successful_run, last_processed_timestamp)
+                    VALUES ('banking_dw_load_pipeline', 'INIT', '1970-01-01 00:00:00', '1970-01-01 00:00:00')
+                    ON CONFLICT (pipeline_name) DO NOTHING;
+                """
+            ))
+
+            # 5. Creating Week 5 Task 9 Performance Indexes
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_fact_transaction_id ON warehouse.fact_transactions (transaction_id);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_fact_customer_key ON warehouse.fact_transactions (customer_key);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_fact_branch_key ON warehouse.fact_transactions (branch_key);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_fact_date_key ON warehouse.fact_transactions (date_key);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_stg_txn_datetime ON staging.transactions_staging (transaction_datetime);"))
     
             if hasattr(conn, 'commit'):
                 conn.commit()
